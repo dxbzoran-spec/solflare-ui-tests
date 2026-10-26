@@ -44,6 +44,9 @@ export const config: WebdriverIO.Config = {
     waitforTimeout: env.waitTimeout,
     connectionRetryTimeout: 120_000,
     connectionRetryCount: 2,
+    // A virtual display (Xvfb) is only needed for headed runs on Linux. On Ubuntu 26.04 starting workers
+    // through xvfb-run breaks their IPC channel ("write EINVAL", webdriverio/webdriverio#15685).
+    autoXvfb: !env.headless,
 
     framework: 'mocha',
     mochaOpts: {
