@@ -24,7 +24,12 @@ function buildCapabilities(): WebdriverIO.Capabilities {
         browserName: 'chrome',
         browserVersion: 'stable',
         'goog:chromeOptions': {
-            args: [...(env.headless ? ['--headless=new'] : []), `--window-size=${width},${height}`]
+            args: [
+                ...(env.headless ? ['--headless=new'] : []),
+                `--window-size=${width},${height}`,
+                // Linux CI runners (Ubuntu 23.10+) do not allow Chrome's sandbox, so Chrome exits on start without this
+                ...(env.isCi && process.platform === 'linux' ? ['--no-sandbox', '--disable-dev-shm-usage'] : [])
+            ]
         }
     }
 }
