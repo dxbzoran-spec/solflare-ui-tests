@@ -1,0 +1,138 @@
+name: E2E tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # daily: the test runs against the live site, so changes on the site are caught even without commits
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: Browser to run (all = chrome + firefox)
+        type: choice
+        options: [all, chrome, firefox]
+        default: all
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.browser }}, headless)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+    # Headless Chrome is blocked by the site (HTTP 429 for the HeadlessChrome user agent, see README);
+    # its result is still reported, but it does not fail the workflow.
+    continue-on-error: ${{ matrix.browser == 'chrome' }}
+    permissions:
+      contents: read
+      checks: write
+    env:
+      BROWSER: ${{ matrix.browser }}
+      HEADLESS: 'true'
+    steps:
+      - name: Skip browser not selected in a manual run
+        if: github.event_name == 'workflow_dispatch' && inputs.browser != 'all' && inputs.browser != matrix.browser
+        run: echo "SKIP=true" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+        if: env.SKIP != 'true'
+
+      - uses: actions/setup-node@v7
+        if: env.SKIP != 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        if: env.SKIP != 'true'
+        run: npm ci
+
+      - name: Type check
+        if: env.SKIP != 'true'
+        run: npm run typecheck
+
+      - name: Run E2E test
+        if: env.SKIP != 'true'
+        run: npm test
+
+      - name: Upload reports, screenshots and logs
+        if: ${{ !cancelled() && env.SKIP != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: results-${{ matrix.browser }}
+          path: |
+            reports/
+            screenshots/
+            logs/
+          if-no-files-found: ignore
+
+      - name: Publish JUnit summary
+        if: ${{ !cancelled() && env.SKIP != 'true' }}
+        uses: mikepenz/action-junit-report@v6
+        with:
+          report_paths: reports/junit/*.xml
+          check_name: JUnit (${{ matrix.browser }})
+
+  report:
+    name: Allure report
+    needs: test
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download results of all browsers
+        uses: actions/download-artifact@v8
+        with:
+          pattern: results-*
+          path: downloaded
+
+      - name: Generate one Allure report for all browsers
+        run: |
+          mkdir -p reports/allure-results
+          cp -r downloaded/*/reports/allure-results/. reports/allure-results/ 2>/dev/null || true
+          npm run report:generate
+
+      - name: Upload Allure report
+        uses: actions/upload-artifact@v7
+        with:
+          name: allure-report
+          path: reports/allure-report
+
+      - name: Upload Allure report for GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: reports/allure-report
+
+  deploy-report:
+    name: Publish report to GitHub Pages
+    needs: report
+    if: ${{ !cancelled() && needs.report.result == 'success' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

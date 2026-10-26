@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import { setOptions as setExpectOptions } from 'expect-webdriverio'
 import { env } from './test/config/env.js'
 import { logger, logFile } from './test/utils/logger.js'
@@ -36,7 +37,8 @@ export const config: WebdriverIO.Config = {
     maxInstances: 1,
     capabilities: [buildCapabilities()],
 
-    logLevel: 'warn',
+    // only WebdriverIO/driver errors; geckodriver prints harmless warnings on every run
+    logLevel: 'error',
     bail: 0,
     baseUrl: env.baseUrl,
     waitforTimeout: env.waitTimeout,
@@ -67,8 +69,9 @@ export const config: WebdriverIO.Config = {
         ['junit', { outputDir: 'reports/junit', outputFileFormat: ({ cid }: { cid: string }) => `results-${env.browser}-${cid}.xml` }]
     ],
 
-    /** Runs once in the launcher process, before any worker starts. */
+    /** Runs once in the launcher process, before any worker starts. Each run starts with empty reports. */
     onPrepare() {
+        fs.rmSync('reports', { recursive: true, force: true })
         logger.info(`Run: browser=${env.browser}, headless=${env.headless}, baseUrl=${env.baseUrl}, CI=${env.isCi}`)
         logger.info(`Log file: ${logFile}`)
     },

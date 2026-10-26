@@ -15,7 +15,7 @@
     "test:chrome:headless": "node scripts/run.mjs --browser=chrome --headless",
     "test:firefox:headless": "node scripts/run.mjs --browser=firefox --headless",
     "typecheck": "tsc --noEmit",
-    "report": "allure generate reports/allure-results -o reports/allure-report && allure open reports/allure-report",
+    "report": "allure open reports/allure-results",
     "report:generate": "allure generate reports/allure-results -o reports/allure-report"
   },
   "devDependencies": {
