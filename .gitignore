@@ -1,0 +1,7 @@
+node_modules/
+reports/
+screenshots/
+logs/
+.~lock.*#
+*.tmp.mjs
+.vscode/
