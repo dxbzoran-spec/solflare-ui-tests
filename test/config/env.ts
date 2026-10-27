@@ -53,6 +53,11 @@ export const env = {
     expectTimeout: readNumber('EXPECT_TIMEOUT_MS', 10_000),
     /** Timeout of a whole Mocha test. */
     testTimeout: readNumber('TEST_TIMEOUT_MS', 120_000),
+    /**
+     * Headless Chrome only: send the normal Chrome user agent instead of `HeadlessChrome`, which the site
+     * answers with HTTP 429. Agreed with Solflare. Default: on; `false` shows the site's original behaviour.
+     */
+    overrideHeadlessUserAgent: readBoolean('OVERRIDE_HEADLESS_USER_AGENT', true),
     /** True on CI servers (GitHub Actions sets `CI=true`); enables one retry. */
     isCi: readBoolean('CI', false),
     /** Browser window size, identical in headed and headless mode so the layout is the same. */

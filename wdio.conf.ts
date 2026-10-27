@@ -34,6 +34,19 @@ function buildCapabilities(): WebdriverIO.Capabilities {
     }
 }
 
+/**
+ * The site answers HTTP 429 to the `HeadlessChrome` user agent (agreed with Solflare to work around it).
+ * Replaces it with the regular `Chrome` user agent of the same browser version. WebDriver BiDi
+ * `emulation.setUserAgentOverride` changes both the HTTP header and `navigator.userAgent`;
+ * `browser.emulate('userAgent')` would only change the latter.
+ */
+async function useRegularChromeUserAgent(): Promise<void> {
+    const headlessUserAgent = await browser.execute(() => navigator.userAgent)
+    const userAgent = headlessUserAgent.replace('HeadlessChrome', 'Chrome')
+    await browser.emulationSetUserAgentOverride({ userAgent })
+    logger.info(`User agent override: ${userAgent}`)
+}
+
 export const config: WebdriverIO.Config = {
     runner: 'local',
     tsConfigPath: './tsconfig.json',
@@ -88,6 +101,9 @@ export const config: WebdriverIO.Config = {
     async before() {
         setExpectOptions({ wait: env.expectTimeout })
         await browser.setWindowSize(width, height)
+        if (env.browser === 'chrome' && env.headless && env.overrideHeadlessUserAgent) {
+            await useRegularChromeUserAgent()
+        }
     },
 
     beforeTest(test) {

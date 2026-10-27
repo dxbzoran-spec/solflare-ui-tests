@@ -37,7 +37,7 @@ Environment variables are what the config reads; the arguments are a shortcut th
 | Firefox, headed | `npm test -- --browser=firefox` or `npm run test:firefox` |
 | Headless (default browser) | `npm test -- --headless` or `npm run test:headless` |
 | Firefox, headless | `npm test -- --browser=firefox --headless` or `npm run test:firefox:headless` |
-| Chrome, headless | `npm run test:chrome:headless` (blocked by the site, see [Observations](#observations)) |
+| Chrome, headless | `npm run test:chrome:headless` (uses the regular Chrome user agent, see [Observations](#observations)) |
 | Same via environment variables | `BROWSER=firefox HEADLESS=true npm test` (PowerShell: `$env:BROWSER='firefox'; $env:HEADLESS='true'; npm test`) |
 | Without npm | `node scripts/run.mjs --browser firefox --headless` |
 | Type check | `npm run typecheck` |
@@ -58,6 +58,7 @@ Every setting has a default and can be overridden with an environment variable (
 | `WAIT_TIMEOUT_MS` | `15000` | Timeout of `waitFor*` commands |
 | `EXPECT_TIMEOUT_MS` | `10000` | How long assertions keep retrying |
 | `TEST_TIMEOUT_MS` | `120000` | Timeout of the whole test |
+| `OVERRIDE_HEADLESS_USER_AGENT` | `true` | Headless Chrome only: send the regular `Chrome` user agent instead of `HeadlessChrome` (see [Observations](#observations)); `false` shows the site's original response |
 | `CI` | `false` | `true` (set by GitHub Actions) enables 1 retry; locally a failure is never retried |
 
 The browser window is 1920×1080 in both headed and headless mode, so the layout is the same.
@@ -147,12 +148,12 @@ The workflow runs on push, pull request, daily at 06:00 UTC, and manually (*Run 
 
 Things found while automating the live app (version 2.41.0, October 2026):
 
-1. **Headless Chrome is blocked by the site.** Requests from a browser whose user agent contains `HeadlessChrome`
-   get `HTTP 429 {"errors":["Too many requests."]}` (`curl` with that user agent gets 403; a normal Chrome user agent
-   gets 200). The test passes in headed Chrome and in headed and headless Firefox. The failure screenshot of a
-   headless Chrome run shows the error page. Overriding the user agent would work around it, but bypassing the site's
-   bot protection should be agreed with Solflare first, so it is not done here; in CI the headless Chrome job is
-   reported but marked `continue-on-error`.
+1. **The site blocks the headless Chrome user agent.** Requests from a browser whose user agent contains
+   `HeadlessChrome` get `HTTP 429 {"errors":["Too many requests."]}` (`curl` with that user agent gets 403; a normal
+   Chrome user agent gets 200). After agreeing it with Solflare, headless Chrome runs with the regular user agent of
+   the same Chrome version (`HeadlessChrome/x` → `Chrome/x`), set in the `before` hook of `wdio.conf.ts` with the
+   WebDriver BiDi command `emulation.setUserAgentOverride`, which changes the HTTP header as well as
+   `navigator.userAgent`. `OVERRIDE_HEADLESS_USER_AGENT=false` turns it off and reproduces the 429.
 2. **The brief is slightly out of date:**
    - after *Get started* there is an extra screen where **Create new wallet** has to be chosen;
    - the "arrow icon next to RECOVERY PHRASE" is a **⋮ More options** icon (`icon-btn-wallet-section-options`);

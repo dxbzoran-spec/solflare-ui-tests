@@ -28,9 +28,6 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chrome, firefox]
-    # Headless Chrome is blocked by the site (HTTP 429 for the HeadlessChrome user agent, see README);
-    # its result is still reported, but it does not fail the workflow.
-    continue-on-error: ${{ matrix.browser == 'chrome' }}
     permissions:
       contents: read
       checks: write
